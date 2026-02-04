@@ -156,14 +156,14 @@ async function seedProducts() {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('Connected to MongoDB');
 
-    // Get a seller user to associate products with
-    const seller = await User.findOne({ role: { $in: ['seller', 'admin'] } });
+    // Get the jee@gmail.com seller user to associate products with
+    const seller = await User.findOne({ email: 'jee@gmail.com' });
     if (!seller) {
-      console.error('No seller or admin user found. Please create a seller account first.');
+      console.error('Seller jee@gmail.com not found. Please create the seller account first.');
       process.exit(1);
     }
 
-    console.log(`Using seller: ${seller.name} (${seller.email})`);
+    console.log(`Using seller: ${seller.name} (${seller.email}) - Role: ${seller.role}`);
 
     // Clear existing products (optional - comment out if you want to keep existing products)
     console.log('Clearing existing products...');
