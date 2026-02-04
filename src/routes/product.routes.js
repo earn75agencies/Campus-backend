@@ -14,19 +14,19 @@ router.get('/:id', productController.getProductById);
 // Create new product (seller only)
 router.post('/', [
   authMiddleware.authenticate,
-  adminMiddleware.requireAdmin
+  adminMiddleware.requireSeller
 ], productController.createProduct);
 
 // Update product (seller only)
 router.put('/:id', [
   authMiddleware.authenticate,
-  adminMiddleware.requireAdmin
+  adminMiddleware.requireSeller
 ], productController.updateProduct);
 
 // Delete product (seller only)
 router.delete('/:id', [
   authMiddleware.authenticate,
-  adminMiddleware.requireAdmin
+  adminMiddleware.requireSeller
 ], productController.deleteProduct);
 
 // Search products

@@ -37,7 +37,7 @@ const paymentSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['card', 'account', 'ussd'],
+    enum: ['card', 'account', 'ussd', 'mpesa'],
     default: 'card'
   },
   customerEmail: {
@@ -45,6 +45,19 @@ const paymentSchema = new mongoose.Schema({
     required: true
   },
   customerPhone: {
+    type: String,
+    required: false
+  },
+  // M-Pesa specific fields
+  mpesaReceiptNumber: {
+    type: String,
+    required: false
+  },
+  transactionDate: {
+    type: String,
+    required: false
+  },
+  failureReason: {
     type: String,
     required: false
   },

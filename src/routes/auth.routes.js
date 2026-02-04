@@ -3,27 +3,46 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const authController = require('../controllers/auth.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
+const { authLimiter, passwordResetLimiter } = require('../middlewares/security.middleware');
+const PasswordValidator = require('../utils/passwordValidator');
 
-// Register user
-router.post('/register', [
-  body('email').isEmail().withMessage('Invalid email format'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-  body('name').optional().trim().isLength({ max: 50 }).withMessage('Name cannot exceed 50 characters')
+// Register user with stricter rate limiting
+router.post('/register', authLimiter, [
+  body('email').isEmail().withMessage('Invalid email format').normalizeEmail(),
+  body('password').custom((value) => {
+    const validation = PasswordValidator.validate(value);
+    if (!validation.isValid) {
+      throw new Error(validation.errors.join(', '));
+    }
+    return true;
+  }),
+  body('name').optional({ checkFalsy: true }).trim().isLength({ max: 50 }).withMessage('Name cannot exceed 50 characters'),
+  body('role').optional().isIn(['student', 'seller', 'admin']).withMessage('Invalid role')
 ], authController.register);
 
-// Login user
-router.post('/login', [
-  body('email').isEmail().withMessage('Invalid email format'),
+// Login user with rate limiting
+router.post('/login', authLimiter, [
+  body('email').isEmail().withMessage('Invalid email format').normalizeEmail(),
   body('password').notEmpty().withMessage('Password is required')
 ], authController.login);
 
 // Get current user
 router.get('/me', authMiddleware.authenticate, authController.getMe);
 
-// Forgot password
-router.post('/forgot-password', authController.forgotPassword);
+// Forgot password with strict rate limiting
+router.post('/forgot-password', passwordResetLimiter, [
+  body('email').isEmail().withMessage('Invalid email format').normalizeEmail()
+], authController.forgotPassword);
 
 // Reset password
-router.post('/reset-password/:token', authController.resetPassword);
+router.post('/reset-password/:token', [
+  body('password').custom((value) => {
+    const validation = PasswordValidator.validate(value);
+    if (!validation.isValid) {
+      throw new Error(validation.errors.join(', '));
+    }
+    return true;
+  })
+], authController.resetPassword);
 
 module.exports = router;

@@ -1,138 +1,32 @@
 const express = require('express');
 const router = express.Router();
+const paymentController = require('../controllers/payment.controller');
+const authMiddleware = require('../middlewares/auth.middleware');
 
-// Get payment callback from Flutterwave
-router.post('/callback', async (req, res) => {
-  try {
-    console.log('Flutterwave Callback:', req.body);
-    const { transaction_id, status, transaction_reference } = req.body;
+// ================== FLUTTERWAVE ROUTES ==================
+// Initialize Flutterwave payment
+router.post('/initialize', authMiddleware.authenticate, paymentController.initializePayment);
 
-    if (!transaction_id || !status) {
-      return res.status(400).json({ error: 'Invalid callback data' });
-    }
+// Verify Flutterwave payment
+router.get('/verify/:transactionId', paymentController.verifyPayment);
 
-    const Payment = require('../models/Payment');
-    const FlutterwaveConfig = require('../config/flutterwave');
+// Get payment status
+router.get('/status/:transactionId', paymentController.getPaymentStatus);
 
-    // Find payment by transaction ID or reference
-    const payment = await Payment.findOne({
-      $or: [
-        { transactionId: transaction_id },
-        { reference: transaction_reference }
-      ]
-    });
+// Get payment methods
+router.get('/methods', paymentController.getPaymentMethods);
 
-    if (!payment) {
-      return res.status(404).json({ error: 'Payment not found' });
-    }
+// Handle Flutterwave callback
+router.post('/callback', paymentController.handleCallback);
 
-    if (status === 'successful') {
-      // Verify transaction with Flutterwave
-      const response = await axios.get(
-        `${FlutterwaveConfig.FLUTTERWAVE_TRANSACTION_URL}/transactions/${transaction_id}/verify`,
-        {
-          headers: {
-            Authorization: `Bearer ${FlutterwaveConfig.FLUTTERWAVE_SECRET_KEY}`
-          }
-        }
-      );
+// ================== M-PESA ROUTES ==================
+// Initialize M-Pesa STK Push payment
+router.post('/mpesa/initiate', authMiddleware.authenticate, paymentController.initiateMpesaPayment);
 
-      if (response.data.status === 'success' && response.data.data.status === 'successful') {
-        payment.status = 'completed';
-        payment.transactionId = response.data.data.flw_ref;
-        payment.paymentMethod = response.data.data.payment_method;
-        await payment.save();
+// Handle M-Pesa callback (from Safaricom)
+router.post('/mpesa/callback', paymentController.handleMpesaCallback);
 
-        // Update order payment status
-        const Order = require('../models/Order');
-        const order = await Order.findById(payment.orderId);
-        if (order) {
-          order.paymentStatus = 'paid';
-          await order.save();
-        }
-
-        res.json({ message: 'Payment callback received successfully' });
-      } else {
-        payment.status = 'failed';
-        await payment.save();
-
-        // Update order payment status
-        const Order = require('../models/Order');
-        const order = await Order.findById(payment.orderId);
-        if (order) {
-          order.paymentStatus = 'failed';
-          await order.save();
-        }
-
-        res.json({ message: 'Payment callback received with failure' });
-      }
-    } else {
-      payment.status = 'failed';
-      await payment.save();
-
-      // Update order payment status
-      const Order = require('../models/Order');
-      const order = await Order.findById(payment.orderId);
-      if (order) {
-        order.paymentStatus = 'failed';
-        await order.save();
-      }
-
-      res.json({ message: 'Payment callback received with failure' });
-    }
-  } catch (error) {
-    console.error('Flutterwave callback error:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Verify payment status directly
-router.get('/verify/:transactionId', async (req, res) => {
-  try {
-    const { transactionId } = req.params;
-    const FlutterwaveConfig = require('../config/flutterwave');
-    const Payment = require('../models/Payment');
-
-    // Find payment by transaction ID or reference
-    const payment = await Payment.findOne({
-      $or: [
-        { transactionId: transactionId },
-        { reference: transactionId }
-      ]
-    });
-
-    if (!payment) {
-      return res.status(404).json({ error: 'Payment not found' });
-    }
-
-    // Verify with Flutterwave API
-    const response = await axios.get(
-      `${FlutterwaveConfig.FLUTTERWAVE_TRANSACTION_URL}/transactions/${transactionId}/verify`,
-      {
-        headers: {
-          Authorization: `Bearer ${FlutterwaveConfig.FLUTTERWAVE_SECRET_KEY}`
-        }
-      }
-    );
-
-    if (response.data.status === 'success') {
-      res.json({
-        status: response.data.data.status,
-        transactionId: transactionId,
-        amount: response.data.data.amount,
-        currency: response.data.data.currency,
-        paymentMethod: response.data.data.payment_method
-      });
-    } else {
-      res.json({
-        status: 'failed',
-        transactionId: transactionId
-      });
-    }
-  } catch (error) {
-    console.error('Payment verification error:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
+// Check M-Pesa payment status
+router.get('/mpesa/status/:checkoutRequestID', paymentController.getMpesaPaymentStatus);
 
 module.exports = router;
