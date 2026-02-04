@@ -8,7 +8,7 @@ const PasswordValidator = require('../utils/passwordValidator');
 
 // Register user with stricter rate limiting
 router.post('/register', authLimiter, [
-  body('email').isEmail().withMessage('Invalid email format').normalizeEmail(),
+  body('email').isEmail().withMessage('Invalid email format').trim().toLowerCase(),
   body('password').custom((value) => {
     const validation = PasswordValidator.validate(value);
     if (!validation.isValid) {
@@ -22,7 +22,7 @@ router.post('/register', authLimiter, [
 
 // Login user with rate limiting
 router.post('/login', authLimiter, [
-  body('email').isEmail().withMessage('Invalid email format').normalizeEmail(),
+  body('email').isEmail().withMessage('Invalid email format').trim().toLowerCase(),
   body('password').notEmpty().withMessage('Password is required')
 ], authController.login);
 
@@ -31,7 +31,7 @@ router.get('/me', authMiddleware.authenticate, authController.getMe);
 
 // Forgot password with strict rate limiting
 router.post('/forgot-password', passwordResetLimiter, [
-  body('email').isEmail().withMessage('Invalid email format').normalizeEmail()
+  body('email').isEmail().withMessage('Invalid email format').trim().toLowerCase()
 ], authController.forgotPassword);
 
 // Reset password

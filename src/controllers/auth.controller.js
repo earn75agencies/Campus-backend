@@ -13,6 +13,13 @@ exports.register = async (req, res) => {
     const { email, password, name, role } = req.body;
     console.log('Registration attempt:', { email, name, role, passwordLength: password?.length });
 
+    // Check if user already exists
+    const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
+    if (existingUser) {
+      console.log('Registration failed: Email already registered', { email });
+      return res.status(400).json({ error: 'Email already registered' });
+    }
+
     const user = new User({
       email,
       password,
@@ -61,7 +68,7 @@ exports.login = async (req, res) => {
 
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -104,7 +111,7 @@ exports.getMe = async (req, res) => {
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
 
     if (!user) {
       return res.status(404).json({ error: 'No user found with this email' });
