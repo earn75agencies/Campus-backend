@@ -59,6 +59,32 @@ const orderSchema = new mongoose.Schema({
     enum: ['pending', 'processing', 'shipped', 'delivered', 'cancelled'],
     default: 'pending'
   },
+  trackingNumber: {
+    type: String,
+    default: null
+  },
+  estimatedDelivery: {
+    type: Date,
+    default: null
+  },
+  statusHistory: [{
+    status: {
+      type: String,
+      enum: ['pending', 'processing', 'shipped', 'delivered', 'cancelled']
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now
+    },
+    note: {
+      type: String,
+      default: ''
+    },
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }
+  }],
   notes: {
     type: String,
     maxlength: [200, 'Notes cannot exceed 200 characters']
@@ -67,6 +93,21 @@ const orderSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
+}, {
+  timestamps: true
+});
+
+// Pre-save hook to add status to history when it changes
+orderSchema.pre('save', function(next) {
+  if (this.isModified('orderStatus')) {
+    this.statusHistory.push({
+      status: this.orderStatus,
+      timestamp: new Date(),
+      note: '',
+      updatedBy: this.updatedBy || null
+    });
+  }
+  next();
 });
 
 module.exports = mongoose.model('Order', orderSchema);

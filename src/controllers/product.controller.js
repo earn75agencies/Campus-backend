@@ -2,12 +2,78 @@ const Product = require('../models/Product');
 
 exports.getAllProducts = async (req, res) => {
   try {
-    const products = await Product.find({ isAvailable: true })
-      .populate('sellerId', 'name email')
-      .sort({ createdAt: -1 });
+    const {
+      search,
+      category,
+      minPrice,
+      maxPrice,
+      minRating,
+      sort = 'createdAt',
+      order = 'desc',
+      page = 1,
+      limit = 20
+    } = req.query;
 
-    res.json(products);
+    // Build query
+    const query = { isAvailable: true };
+
+    // Text search
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Category filter
+    if (category) {
+      query.category = category;
+    }
+
+    // Price range filter
+    if (minPrice !== undefined || maxPrice !== undefined) {
+      query.price = {};
+      if (minPrice !== undefined) query.price.$gte = parseFloat(minPrice);
+      if (maxPrice !== undefined) query.price.$lte = parseFloat(maxPrice);
+    }
+
+    // Rating filter
+    if (minRating !== undefined) {
+      query.averageRating = { $gte: parseFloat(minRating) };
+    }
+
+    // Build sort object
+    const sortOptions = {};
+    const validSortFields = ['createdAt', 'price', 'averageRating', 'name', 'reviewCount'];
+    const sortField = validSortFields.includes(sort) ? sort : 'createdAt';
+    sortOptions[sortField] = order === 'asc' ? 1 : -1;
+
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Execute query with pagination
+    const [products, total] = await Promise.all([
+      Product.find(query)
+        .populate('sellerId', 'name email')
+        .sort(sortOptions)
+        .skip(skip)
+        .limit(limitNum),
+      Product.countDocuments(query)
+    ]);
+
+    res.json({
+      products,
+      pagination: {
+        currentPage: pageNum,
+        totalPages: Math.ceil(total / limitNum),
+        totalProducts: total,
+        hasMore: skip + products.length < total
+      }
+    });
   } catch (error) {
+    console.error('Error fetching products:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -113,14 +179,43 @@ exports.deleteProduct = async (req, res) => {
 
 exports.searchProducts = async (req, res) => {
   try {
-    const query = req.params.query;
+    const { query } = req.params;
+
+    // Use the same logic as getAllProducts but with search param
     const products = await Product.find({
-      name: { $regex: query, $options: 'i' },
+      $or: [
+        { name: { $regex: query, $options: 'i' } },
+        { description: { $regex: query, $options: 'i' } }
+      ],
       isAvailable: true
-    }).populate('sellerId', 'name email');
+    })
+      .populate('sellerId', 'name email')
+      .sort({ createdAt: -1 })
+      .limit(50); // Limit results for search
 
     res.json(products);
   } catch (error) {
+    console.error('Error searching products:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// Get all unique categories
+exports.getCategories = async (req, res) => {
+  try {
+    const categories = await Product.distinct('category', { isAvailable: true });
+
+    // Get product count for each category
+    const categoryCounts = await Promise.all(
+      categories.map(async (category) => ({
+        name: category,
+        count: await Product.countDocuments({ category, isAvailable: true })
+      }))
+    );
+
+    res.json(categoryCounts.sort((a, b) => b.count - a.count));
+  } catch (error) {
+    console.error('Error fetching categories:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };

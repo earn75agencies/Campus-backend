@@ -32,4 +32,7 @@ router.delete('/:id', [
 // Search products
 router.get('/search/:query', productController.searchProducts);
 
+// Get all categories with counts
+router.get('/categories/list', productController.getCategories);
+
 module.exports = router;

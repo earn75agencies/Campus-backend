@@ -11,6 +11,9 @@ router.get('/my-orders', authMiddleware.authenticate, orderController.getUserOrd
 // Get order by ID
 router.get('/:id', authMiddleware.authenticate, orderController.getOrderById);
 
+// Get order tracking information
+router.get('/:id/tracking', authMiddleware.authenticate, orderController.getOrderTracking);
+
 // Create new order
 router.post('/', [
   authMiddleware.authenticate,
@@ -22,10 +25,9 @@ router.post('/', [
   body('shippingAddress.zipCode').notEmpty().withMessage('Zip code is required')
 ], orderController.createOrder);
 
-// Update order status (admin only)
+// Update order status (admin or seller)
 router.put('/:id/status', [
-  authMiddleware.authenticate,
-  adminMiddleware.requireAdmin
+  authMiddleware.authenticate
 ], orderController.updateOrderStatus);
 
 // Cancel order
