@@ -7,7 +7,8 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "fix-indexes": "node src/scripts/fixIndexes.js",
-    "fix-username-index": "node src/scripts/fixUsernameIndex.js"
+    "fix-username-index": "node src/scripts/fixUsernameIndex.js",
+    "seed-products": "node src/scripts/seedProducts.js"
   },
   "dependencies": {
     "axios": "^1.6.2",
