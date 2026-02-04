@@ -4,6 +4,9 @@ const helmet = require('helmet');
 const { securityHeaders, generalLimiter, sanitizeInput } = require('./middlewares/security.middleware');
 const app = express();
 
+// Trust proxy for Render deployment (required for rate limiting)
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(securityHeaders);
 app.use(helmet({
